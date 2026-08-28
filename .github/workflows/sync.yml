@@ -310,7 +310,77 @@ jobs:
           mv "$temp_dir/repo" "$dest"
 
           rm -rf "$temp_dir"
+      # ============================================================
+      # Customize luci-app-wolplus
+      # ============================================================
+      - name: Customize luci-app-wolplus
+        shell: bash
+        run: |
+          set -Eeuo pipefail
 
+          WOLPLUS_DIR="luci-app-wolplus"
+
+          WOLPLUS_LUA="${WOLPLUS_DIR}/luasrc/controller/wolplus.lua"
+          WOLPLUS_ZH_CN="${WOLPLUS_DIR}/po/zh-cn/wolplus.po"
+          WOLPLUS_ZH_HANS="${WOLPLUS_DIR}/po/zh_Hans/wolplus.po"
+
+          echo "============================================================"
+          echo "Customizing luci-app-wolplus"
+          echo "============================================================"
+
+          # 检查文件是否存在
+          for file in \
+            "$WOLPLUS_LUA" \
+            "$WOLPLUS_ZH_CN" \
+            "$WOLPLUS_ZH_HANS"
+          do
+            if [[ ! -f "$file" ]]; then
+              echo "::error::File not found: $file"
+              exit 1
+            fi
+          done
+
+          # 修改菜单名称
+          sed -i \
+            's/_("wolplus")/_("Wake on LAN")/g' \
+            "$WOLPLUS_LUA"
+
+          # 修改英文标识
+          sed -i \
+            's/wolplus/Wake on LAN/g' \
+            "$WOLPLUS_ZH_CN"
+
+          sed -i \
+            's/wolplus/Wake on LAN/g' \
+            "$WOLPLUS_ZH_HANS"
+
+          # 网络唤醒Plus → 网络唤醒
+          sed -i \
+            's/网络唤醒Plus/网络唤醒/g' \
+            "$WOLPLUS_ZH_CN"
+
+          sed -i \
+            's/网络唤醒Plus/网络唤醒/g' \
+            "$WOLPLUS_ZH_HANS"
+
+          # 网络唤醒Plus-增强版 → 网络唤醒-增强版
+          sed -i \
+            's/网络唤醒Plus-增强版/网络唤醒-增强版/g' \
+            "$WOLPLUS_ZH_CN"
+
+          sed -i \
+            's/网络唤醒Plus-增强版/网络唤醒-增强版/g' \
+            "$WOLPLUS_ZH_HANS"
+
+          echo "Customization completed."
+
+          # 显示修改结果
+          echo
+          echo "Changes:"
+          git diff -- \
+            "$WOLPLUS_LUA" \
+            "$WOLPLUS_ZH_CN" \
+            "$WOLPLUS_ZH_HANS"
       # ============================================================
       # Commit
       # ============================================================
