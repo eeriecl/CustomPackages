@@ -2,72 +2,335 @@ name: Sync Packages
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+
   schedule:
-    - cron: '0 0 * * *' # 每天北京时间上午8点自动运行
-  workflow_dispatch:    # 支持手动触发
+    # 每天北京时间 08:00
+    # GitHub Actions 使用 UTC
+    - cron: "0 0 * * *"
+
+  workflow_dispatch:
+
+# 防止多个同步任务同时修改仓库
+concurrency:
+  group: sync-packages
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
-  update:
+  sync:
+    name: Sync OpenWrt Packages
     runs-on: ubuntu-latest
+
     steps:
+      # ============================================================
+      # Checkout OpenWrt source
+      # ============================================================
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Sync Sources
+      # ============================================================
+      # Sync packages
+      # ============================================================
+      - name: Sync Packages
+        shell: bash
         run: |
-          # 配置 Git 用户信息
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
+          set -Eeuo pipefail
 
-          # 定义同步函数 (仓库链接, 目标文件夹, [子目录路径])
+          # --------------------------------------------------------
+          # Git configuration
+          # --------------------------------------------------------
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+
+          # --------------------------------------------------------
+          # Sync function
+          #
+          # $1 = upstream repository
+          # $2 = destination directory
+          # $3 = optional subdirectory
+          # --------------------------------------------------------
           sync_repo() {
-            local url=$1
-            local dest=$2
-            local subdir=$3
-            
-            echo "Syncing $dest from $url..."
-            rm -rf "$dest"
-            
-            if [ -z "$subdir" ]; then
-              # 全仓库同步 (去 git 信息)
-              git clone --depth 1 "$url" "temp_$dest"
-              mv "temp_$dest" "$dest"
-            else
-              # 指定子目录同步 (使用 sparse-checkout)
-              mkdir -p "temp_$dest"
-              cd "temp_$dest"
-              git init
-              git remote add origin "$url"
-              git config core.sparseCheckout true
-              echo "$subdir" >> .git/info/sparse-checkout
-              git pull --depth 1 origin master || git pull --depth 1 origin main
-              cd ..
-              mv "temp_$dest/$subdir" "$dest"
+            local url="$1"
+            local dest="$2"
+            local subdir="${3:-}"
+
+            local name
+            name="$(basename "$url" .git)"
+
+            local temp_dir
+            temp_dir="$(mktemp -d "${RUNNER_TEMP}/${name}.XXXXXX")"
+
+            echo
+            echo "============================================================"
+            echo "Syncing: ${name}"
+            echo "URL:     ${url}"
+            echo "Target:  ${dest}"
+            echo "Subdir:  ${subdir:-<entire repository>}"
+            echo "============================================================"
+
+            # ------------------------------------------------------
+            # Detect default branch
+            # ------------------------------------------------------
+            local branch
+
+            branch="$(
+              git ls-remote --symref "$url" HEAD |
+              awk '/^ref:/ {
+                sub("refs/heads/", "", $2)
+                print $2
+              }' |
+              head -n 1
+            )"
+
+            if [[ -z "$branch" ]]; then
+              echo "::error::Cannot detect default branch: $url"
+              rm -rf "$temp_dir"
+              return 1
             fi
-            rm -rf "temp_$dest"
-            rm -rf "$dest/.git" # 移除 Git 追踪信息，使其变为普通文件夹
+
+            echo "Default branch: ${branch}"
+
+            # ------------------------------------------------------
+            # Full repository
+            # ------------------------------------------------------
+            if [[ -z "$subdir" ]]; then
+
+              git clone \
+                --depth=1 \
+                --single-branch \
+                --branch "$branch" \
+                "$url" \
+                "$temp_dir/repo"
+
+              rm -rf "$temp_dir/repo/.git"
+
+              # Atomic replacement
+              rm -rf "$dest"
+              mkdir -p "$(dirname "$dest")"
+              mv "$temp_dir/repo" "$dest"
+
+            else
+
+              # ----------------------------------------------------
+              # Sparse checkout
+              # ----------------------------------------------------
+              git clone \
+                --depth=1 \
+                --filter=blob:none \
+                --sparse \
+                --single-branch \
+                --branch "$branch" \
+                "$url" \
+                "$temp_dir/repo"
+
+              cd "$temp_dir/repo"
+
+              git sparse-checkout set "$subdir"
+
+              cd - >/dev/null
+
+              # Verify directory
+              if [[ ! -d "$temp_dir/repo/$subdir" ]]; then
+                echo "::error::Directory does not exist: $subdir"
+                rm -rf "$temp_dir"
+                return 1
+              fi
+
+              rm -rf "$dest"
+              mkdir -p "$(dirname "$dest")"
+
+              mv "$temp_dir/repo/$subdir" "$dest"
+            fi
+
+            # ------------------------------------------------------
+            # Cleanup
+            # ------------------------------------------------------
+            rm -rf "$temp_dir"
+            rm -rf "$dest/.git"
+
+            echo "Successfully synced: ${dest}"
           }
 
-          # 执行同步任务
-          sync_repo "https://github.com/gaoderby/luci-app-kms" "luci-app-kms"
-          sync_repo "https://github.com/vernesong/OpenClash" "luci-app-openclash" "luci-app-openclash"
-          sync_repo "https://github.com/siwind/luci-app-wolplus" "luci-app-wolplus"
-          sync_repo "https://github.com/jerrykuku/luci-theme-argon" "luci-theme-argon"
-          cp -f "background/bg1.jpg" "luci-theme-argon/htdocs/luci-static/argon/background/bg1.jpg"
-          sync_repo "https://github.com/sbwml/luci-app-mosdns" "luci-app-mosdns"
-          sync_repo "https://github.com/immortalwrt/homeproxy" "luci-app-homeproxy"
-          sync_repo "https://github.com/Openwrt-Passwall/openwrt-passwall-packages" "passwall_packages"
-          sync_repo "https://github.com/Openwrt-Passwall/openwrt-passwall" "passwall_luci"
+          # ========================================================
+          # LuCI packages
+          # ========================================================
 
-      - name: Commit and Push
-        run: |
-          git add .
-          if ! git diff --staged --quiet; then
-            git commit -m "Auto Sync: $(date +'%Y-%m-%d %H:%M:%S')"
-            git push
-          else
-            echo "No changes to commit"
+          sync_repo \
+            "https://github.com/gaoderby/luci-app-kms.git" \
+            "luci-app-kms"
+
+          sync_repo \
+            "https://github.com/vernesong/OpenClash.git" \
+            "luci-app-openclash" \
+            "luci-app-openclash"
+
+          sync_repo \
+            "https://github.com/siwind/luci-app-wolplus.git" \
+            "luci-app-wolplus"
+
+          sync_repo \
+            "https://github.com/jerrykuku/luci-theme-argon.git" \
+            "luci-theme-argon"
+
+          sync_repo \
+            "https://github.com/sbwml/luci-app-mosdns.git" \
+            "luci-app-mosdns"
+
+          sync_repo \
+            "https://github.com/immortalwrt/homeproxy.git" \
+            "luci-app-homeproxy"
+
+          # ========================================================
+          # Passwall
+          # ========================================================
+
+          sync_repo \
+            "https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git" \
+            "passwall_packages"
+
+          sync_repo \
+            "https://github.com/Openwrt-Passwall/openwrt-passwall.git" \
+            "passwall_luci"
+
+          # ========================================================
+          # Argon custom background
+          # ========================================================
+
+          echo
+          echo "Installing custom Argon background..."
+
+          if [[ ! -f "background/bg1.jpg" ]]; then
+            echo "::error::background/bg1.jpg not found"
+            exit 1
           fi
+
+          mkdir -p \
+            "luci-theme-argon/htdocs/luci-static/argon/background"
+
+          cp -f \
+            "background/bg1.jpg" \
+            "luci-theme-argon/htdocs/luci-static/argon/background/bg1.jpg"
+
+          echo "Custom Argon background installed."
+
+      # ============================================================
+      # Sync vlmcsd
+      # ============================================================
+      - name: Sync vlmcsd
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          url="https://github.com/OneNAS-space/vlmcsd.git"
+          dest="package/network/vlmcsd"
+
+          temp_dir="$(mktemp -d "${RUNNER_TEMP}/vlmcsd.XXXXXX")"
+
+          echo "============================================================"
+          echo "Syncing vlmcsd"
+          echo "============================================================"
+
+          branch="$(
+            git ls-remote --symref "$url" HEAD |
+            awk '/^ref:/ {
+              sub("refs/heads/", "", $2)
+              print $2
+            }' |
+            head -n 1
+          )"
+
+          if [[ -z "$branch" ]]; then
+            echo "::error::Cannot detect vlmcsd default branch"
+            exit 1
+          fi
+
+          git clone \
+            --depth=1 \
+            --single-branch \
+            --branch "$branch" \
+            "$url" \
+            "$temp_dir/repo"
+
+          rm -rf "$temp_dir/repo/.git"
+
+          rm -rf "$dest"
+          mkdir -p "$(dirname "$dest")"
+          mv "$temp_dir/repo" "$dest"
+
+          rm -rf "$temp_dir"
+
+      # ============================================================
+      # Sync luci-app-vlmcsd
+      # ============================================================
+      - name: Sync luci-app-vlmcsd
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          url="https://github.com/OneNAS-space/luci-app-vlmcsd.git"
+          dest="luci/applications/luci-app-vlmcsd"
+
+          temp_dir="$(mktemp -d "${RUNNER_TEMP}/luci-vlmcsd.XXXXXX")"
+
+          echo "============================================================"
+          echo "Syncing luci-app-vlmcsd"
+          echo "============================================================"
+
+          branch="$(
+            git ls-remote --symref "$url" HEAD |
+            awk '/^ref:/ {
+              sub("refs/heads/", "", $2)
+              print $2
+            }' |
+            head -n 1
+          )"
+
+          if [[ -z "$branch" ]]; then
+            echo "::error::Cannot detect luci-app-vlmcsd default branch"
+            exit 1
+          fi
+
+          git clone \
+            --depth=1 \
+            --single-branch \
+            --branch "$branch" \
+            "$url" \
+            "$temp_dir/repo"
+
+          rm -rf "$temp_dir/repo/.git"
+
+          rm -rf "$dest"
+          mkdir -p "$(dirname "$dest")"
+          mv "$temp_dir/repo" "$dest"
+
+          rm -rf "$temp_dir"
+
+      # ============================================================
+      # Commit
+      # ============================================================
+      - name: Commit and Push
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          echo
+          echo "Changed files:"
+          git diff --cached --stat
+
+          git commit \
+            -m "Auto Sync: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+          git push origin HEAD:main
