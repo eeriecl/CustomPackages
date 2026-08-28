@@ -1,8 +1,8 @@
-msgid "wolplus"
-msgstr "网络唤醒Plus"
+msgid "Wake on LAN"
+msgstr "网络唤醒"
 
 msgid "WOL Plus"
-msgstr "网络唤醒Plus-增强版"
+msgstr "网络唤醒-增强版"
 
 msgid "Wake up your LAN device"
 msgstr "网络唤醒您的局域网设备"
