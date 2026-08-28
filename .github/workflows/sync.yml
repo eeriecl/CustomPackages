@@ -228,7 +228,7 @@ jobs:
           set -Eeuo pipefail
 
           url="https://github.com/OneNAS-space/vlmcsd.git"
-          dest="package/network/vlmcsd"
+          dest="vlmcsd"
 
           temp_dir="$(mktemp -d "${RUNNER_TEMP}/vlmcsd.XXXXXX")"
 
@@ -274,7 +274,7 @@ jobs:
           set -Eeuo pipefail
 
           url="https://github.com/OneNAS-space/luci-app-vlmcsd.git"
-          dest="luci/applications/luci-app-vlmcsd"
+          dest="luci-app-vlmcsd"
 
           temp_dir="$(mktemp -d "${RUNNER_TEMP}/luci-vlmcsd.XXXXXX")"
 
