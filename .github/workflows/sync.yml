@@ -390,7 +390,7 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          VLMCS_DIR="luci/applications/luci-app-vlmcsd"
+          VLMCS_DIR="luci-app-vlmcsd"
 
           VLMCS_MENU="${VLMCS_DIR}/root/usr/share/luci/menu.d/luci-app-vlmcsd.json"
           VLMCS_PO="${VLMCS_DIR}/po/zh_Hans/vlmcsd.po"
