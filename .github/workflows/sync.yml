@@ -182,21 +182,21 @@ jobs:
             "https://github.com/sbwml/luci-app-mosdns.git" \
             "luci-app-mosdns"
 
-          sync_repo \
-            "https://github.com/immortalwrt/homeproxy.git" \
-            "luci-app-homeproxy"
+          #sync_repo \
+          #  "https://github.com/immortalwrt/homeproxy.git" \
+          #  "luci-app-homeproxy"
 
           # ========================================================
           # Passwall
           # ========================================================
 
-          sync_repo \
-            "https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git" \
-            "passwall_packages"
+          #sync_repo \
+          #  "https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git" \
+          #  "passwall_packages"
 
-          sync_repo \
-            "https://github.com/Openwrt-Passwall/openwrt-passwall.git" \
-            "passwall_luci"
+          #sync_repo \
+          #  "https://github.com/Openwrt-Passwall/openwrt-passwall.git" \
+          #  "passwall_luci"
 
           # ========================================================
           # Argon custom background
