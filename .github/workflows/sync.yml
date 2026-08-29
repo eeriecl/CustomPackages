@@ -381,6 +381,83 @@ jobs:
             "$WOLPLUS_LUA" \
             "$WOLPLUS_ZH_CN" \
             "$WOLPLUS_ZH_HANS"
+
+      # ============================================================
+      # Customize luci-app-vlmcsd
+      # ============================================================
+      - name: Customize luci-app-vlmcsd
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          VLMCS_DIR="luci/applications/luci-app-vlmcsd"
+
+          VLMCS_MENU="${VLMCS_DIR}/root/usr/share/luci/menu.d/luci-app-vlmcsd.json"
+          VLMCS_PO="${VLMCS_DIR}/po/zh_Hans/vlmcsd.po"
+
+          echo "============================================================"
+          echo "Customizing luci-app-vlmcsd"
+          echo "============================================================"
+
+          # --------------------------------------------------------
+          # 检查文件
+          # --------------------------------------------------------
+
+          for file in \
+            "$VLMCS_MENU" \
+            "$VLMCS_PO"
+          do
+            if [[ ! -f "$file" ]]; then
+              echo "::error::File not found: $file"
+              exit 1
+            fi
+          done
+
+          # --------------------------------------------------------
+          # 修改 LuCI 菜单名称
+          #
+          # "title": "Vlmcsd KMS Server"
+          #       ↓
+          # "title": "KMS Server"
+          # --------------------------------------------------------
+
+          sed -i \
+            's/"title": "Vlmcsd KMS Server"/"title": "KMS Server"/' \
+            "$VLMCS_MENU"
+
+          # --------------------------------------------------------
+          # 修改中文翻译
+          #
+          # msgid "Vlmcsd KMS Server"
+          # msgstr "Vlmcsd KMS 服务器"
+          #
+          #       ↓
+          #
+          # msgid "KMS Server"
+          # msgstr "KMS 服务器"
+          # --------------------------------------------------------
+
+          sed -i \
+            '/^msgid "Vlmcsd KMS Server"$/,/^msgstr / s/^msgstr "Vlmcsd KMS 服务器"$/msgstr "KMS 服务器"/' \
+            "$VLMCS_PO"
+
+          sed -i \
+            '/^msgid "Vlmcsd KMS Server"$/ s/^msgid "Vlmcsd KMS Server"$/msgid "KMS Server"/' \
+            "$VLMCS_PO"
+
+          # --------------------------------------------------------
+          # 显示修改内容
+          # --------------------------------------------------------
+
+          echo
+          echo "============================================================"
+          echo "luci-app-vlmcsd changes"
+          echo "============================================================"
+
+          git diff -- \
+            "$VLMCS_MENU" \
+            "$VLMCS_PO"
+
       # ============================================================
       # Commit
       # ============================================================
