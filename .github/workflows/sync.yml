@@ -459,6 +459,129 @@ jobs:
             "$VLMCS_PO"
 
       # ============================================================
+      # Install Clash Meta core for ARM64
+      # ============================================================
+      - name: Install Clash Meta ARM64 core
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          OPENCLASH_DIR="luci-app-openclash"
+          CORE_DIR="${OPENCLASH_DIR}/root/etc/openclash/core"
+
+          CLASH_URL="https://github.com/vernesong/OpenClash/raw/core/master/meta/clash-linux-arm64.tar.gz"
+          CLASH_ARCHIVE="/tmp/clash-linux-arm64.tar.gz"
+          CLASH_TEMP="/tmp/clash-meta"
+
+          echo "============================================================"
+          echo "Installing Clash Meta ARM64 core"
+          echo "============================================================"
+
+          # --------------------------------------------------------
+          # 检查 OpenClash
+          # --------------------------------------------------------
+
+          if [[ ! -d "$OPENCLASH_DIR" ]]; then
+            echo "::error::OpenClash directory not found: $OPENCLASH_DIR"
+            exit 1
+          fi
+
+          # --------------------------------------------------------
+          # 创建临时目录
+          # --------------------------------------------------------
+
+          rm -rf "$CLASH_TEMP"
+          mkdir -p "$CLASH_TEMP"
+
+          # --------------------------------------------------------
+          # 下载 Clash Meta ARM64
+          # --------------------------------------------------------
+
+          echo "Downloading Clash Meta ARM64..."
+
+          curl \
+            -fL \
+            --connect-timeout 30 \
+            --max-time 120 \
+            --retry 3 \
+            --retry-delay 5 \
+            -o "$CLASH_ARCHIVE" \
+            "$CLASH_URL"
+
+          # --------------------------------------------------------
+          # 检查下载文件
+          # --------------------------------------------------------
+
+          if [[ ! -s "$CLASH_ARCHIVE" ]]; then
+            echo "::error::Clash Meta archive is empty."
+            exit 1
+          fi
+
+          echo "Downloaded:"
+          ls -lh "$CLASH_ARCHIVE"
+
+          # --------------------------------------------------------
+          # 解压 Clash Meta
+          # --------------------------------------------------------
+
+          echo "Extracting Clash Meta..."
+
+          tar -xzf "$CLASH_ARCHIVE" \
+            -C "$CLASH_TEMP"
+
+          # --------------------------------------------------------
+          # 检查核心文件
+          # --------------------------------------------------------
+
+          if [[ ! -f "$CLASH_TEMP/clash" ]]; then
+            echo "::error::Clash Meta binary not found."
+            echo "Extracted files:"
+            find "$CLASH_TEMP" -maxdepth 2 -type f -print
+            exit 1
+          fi
+
+          # --------------------------------------------------------
+          # 设置执行权限
+          # --------------------------------------------------------
+
+          chmod +x "$CLASH_TEMP/clash"
+
+          # --------------------------------------------------------
+          # 安装 Clash Meta
+          # --------------------------------------------------------
+
+          mkdir -p "$CORE_DIR"
+
+          rm -f "$CORE_DIR/clash_meta"
+
+          mv \
+            "$CLASH_TEMP/clash" \
+            "$CORE_DIR/clash_meta"
+
+          chmod +x "$CORE_DIR/clash_meta"
+
+          # --------------------------------------------------------
+          # 验证
+          # --------------------------------------------------------
+
+          echo
+          echo "Clash Meta core:"
+          ls -lh "$CORE_DIR/clash_meta"
+
+          file "$CORE_DIR/clash_meta"
+
+          # --------------------------------------------------------
+          # 清理
+          # --------------------------------------------------------
+
+          rm -rf \
+            "$CLASH_ARCHIVE" \
+            "$CLASH_TEMP"
+
+          echo
+          echo "Clash Meta ARM64 core installation completed."
+
+      # ============================================================
       # Commit
       # ============================================================
       - name: Commit and Push
