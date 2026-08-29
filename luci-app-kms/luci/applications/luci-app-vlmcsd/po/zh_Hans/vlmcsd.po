@@ -57,5 +57,5 @@ msgstr "这是 /etc/vlmcsd.ini 文件的内容，您可以在此进行编辑，�
 #: applications/luci-app-vlmcsd/htdocs/luci-static/resources/view/vlmcsd.js:23
 #: applications/luci-app-vlmcsd/htdocs/luci-static/resources/view/vlmcsd.js:30
 #: applications/luci-app-vlmcsd/root/usr/share/luci/menu.d/luci-app-vlmcsd.json:3
-msgid "Vlmcsd KMS Server"
-msgstr "Vlmcsd KMS 服务器"
+msgid "KMS Server"
+msgstr "KMS 服务器"
