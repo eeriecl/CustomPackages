@@ -182,9 +182,9 @@ jobs:
             "https://github.com/sbwml/luci-app-mosdns.git" \
             "luci-app-mosdns"
 
-          sync_repo \
-            "https://github.com/nikkinikki-org/OpenWrt-nikki.git" \
-            "OpenWrt-nikki"
+          #sync_repo \
+          #  "https://github.com/nikkinikki-org/OpenWrt-nikki.git" \
+          #  "luci-app-nikki"
 
           #sync_repo \
           #  "https://github.com/immortalwrt/homeproxy.git" \
