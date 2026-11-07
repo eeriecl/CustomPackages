@@ -181,6 +181,9 @@ jobs:
           sync_repo \
             "https://github.com/sbwml/luci-app-mosdns.git" \
             "luci-app-mosdns"
+          sync_repo \
+            "https://github.com/sirpdboy/luci-app-ddns-go.git" \
+            "luci-app-ddns-go"
 
           #sync_repo \
           #  "https://github.com/nikkinikki-org/OpenWrt-nikki.git" \
